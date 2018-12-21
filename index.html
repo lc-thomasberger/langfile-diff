@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+    }
+    .row span {
+      width: 33vw;
+      padding: 10px;
+    }
+    .row:nth-child(even) {
+      background: #cdcdcd;
+    }
+
+    .toolbar {
+      display: flex;
+    }
+
+    .toolbar input {
+      flex-grow: 1;
+      margin: 10px;
+      padding: 4px 8px;
+    }
+
+    button {
+      padding: 10px 20px;
+    }
+
+    .wrapper {
+      margin: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <input type="text" name="master" value="https://raw.githubusercontent.com/adaptlearning/adapt_authoring/master/routes/lang/en-application.json" placeholder="en-application.json">
+    <input type="text" name="copy" value="https://raw.githubusercontent.com/johnniezen/adapt_authoring/patch-1/routes/lang/nl-application.json" placeholder="xx-application.json">
+    <button id="loadFiles">Load</button>
+  </div>
+  <div class="wrapper">
+    <details>
+      <summary>Matching Keys: <span id="label-matching"></span></summary>
+      <div id="matching"></div>
+    </details>
+    <details>
+      <summary>Missing from master: <span id="label-missing"></span></summary>
+      <div id="missing"></div>
+    </details>
+    <details>
+      <summary>Orphaned from master <span id="label-orphaned"></span></summary>
+      <div id="orphaned"></div>
+    </details>
+  </div>
+
+  <script>
+    function $ (selector) {
+      return document.querySelector(selector);
+    }
+
+    const loadBtn = $('#loadFiles');
+
+    loadBtn.addEventListener('click', function(event) {
+      const masterSrc = $('input[name="master"]').value;
+      const copySrc = $('input[name="copy"]').value;
+
+      fetchFiles(masterSrc, copySrc);
+
+    });
+
+    async function fetchFiles (mSrc, cSrc) {
+      let masterJson = await fetch(mSrc).then(response => response.json()).then(json => json);
+      let copyJson;
+      try {
+        copyJson = await fetch(cSrc).then(response => response.json()).then(text => text);
+        processData(masterJson, copyJson);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function processData(masterJson, copyJson) {
+      const sameKexs = _.intersection(Object.keys(masterJson), Object.keys(copyJson));
+      const missingKeys = _.difference(Object.keys(masterJson), Object.keys(copyJson));
+      const orphanedKeys = _.difference(Object.keys(copyJson), Object.keys(masterJson));
+
+      $('#label-matching').textContent = sameKexs.length;
+      $('#label-missing').textContent = missingKeys.length;
+      $('#label-orphaned').textContent = orphanedKeys.length;
+
+      renderItems($('#matching'), sameKexs, masterJson, copyJson);
+      renderItems($('#missing'), missingKeys, masterJson, copyJson);
+      renderItems($('#orphaned'), orphanedKeys, masterJson, copyJson);
+    }
+
+    function renderItems(parent, keys, masterJson, copyJson) {
+      const html = keys.map(key => {
+        return `<div class="row"><span>${key}</span><span>${masterJson[key] || '---'}</span><span>${copyJson[key] || '---'}</span></div>`;
+      });
+      parent.innerHTML = html.join('');
+    }
+
+  </script>
+</body>
+</html>
